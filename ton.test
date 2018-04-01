@@ -1,0 +1,33 @@
+# leg20180401
+#
+
+package require tcltest 2.0
+
+lappend auto_path .
+package require ton 0.1
+
+namespace import ::tcltest::*
+
+proc slurp f {set f [read [set f [open $f]]][close $f]}
+
+
+test pass1_object {A complicated JSON object} -setup {
+    set json [slurp test/pass1.json]
+} -body {
+    ton::json2ton $json
+} -result {}
+
+test pass2_array {A (not to) deeply nested array} -setup {
+    set json [slurp test/pass2.json]
+} -body {
+    ton::json2ton $json
+} -result {a [a [a [a [a [a [a [a [a [a [a [a [a [a [a [a [a [a [a [s {Not too deep}]]]]]]]]]]]]]]]]]]]}
+
+
+
+cleanupTests
+
+# Emacs
+# Local Variables:
+# mode: tcl
+# End:

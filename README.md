@@ -74,6 +74,16 @@ directly in source code into a Tcl script and parses JSON correctly,
 without overstretching correctness.
 
 
+Bugs
+----
+
+The following two valid JSON strings produce an error in
+`ton::json2ton`:
+
+	"k":{}
+	"k":[]
+
+
 Caveats
 -------
 
@@ -109,3 +119,14 @@ License Terms
 In order to comply with general usage in the Tcl/Tk community *ton* is
 released under a BSD style license, copied directly from the Tcllib
 source tree and available in the file `license.terms`
+
+
+Testing
+-------
+
+json.org offers a small test suite on the page
+http://www.json.org/JSON_checker/
+
+http://seriot.ch/parsing_json.php goes wild about (non)-compliance and
+missing clarity of specifications. It's test suite is here:
+https://github.com/nst/JSONTestSuite
