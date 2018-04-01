@@ -1,9 +1,22 @@
+# leg20180331: ton / TON - Tcl Object Notation
+#
+# This package provides manipulation functionality for TON - a data
+# serialization format with a direct mapping to JSON.
+#
+# In its essence, a JSON parser is provided, which can convert a JSON
+# string into a Tcllib json style dictionary (dicts and arrays mixed),
+# into a jimhttp style dictionary (only dicts) or into a nested, typed
+# Tcl list.
+#
+# Finally, TON can be converted into (unformatted) JSON.
+
 namespace eval ton {
     namespace export json2ton
 
     variable version 0.1
     
     proc json2ton json {lindex [jscan $json [string length $json]] 1}
+
 }
 proc ton::trr {s i} {
     while {[set c [string index $s $i]] eq "\n" ||
@@ -170,3 +183,4 @@ namespace eval ton::2json {
     proc s s {return "\"$s\""}
 }
 
+package provide ton $ton::version
