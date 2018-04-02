@@ -2,30 +2,328 @@
 #
 
 package require tcltest 2.0
+namespace import ::tcltest::*
+
+verbose {pass error}
+
+# JSON is not JSON.
+# Stray strings, literals and object elements are considered as failed
+# by the json.org test suite.
+#
+# We follow RFC 8259, which allows any value, not only objects and
+# arrays.
+
+# ton is not very restrictive on escaped characters and octal or hex
+# numbers
+testConstraint StrictJSON false
+
+# Bugs in ton 0.1
+testConstraint ExtraBracketBugFixed true
+testConstraint EmptyObjOrArrBugFixed true
+testConstraint StrayStringBugFixed true
+testConstraint LeftOverTextBugFixed true
+
+
+proc slurp f {set f [read [set f [open $f]]][close $f]}
+
+# ton setup
 
 lappend auto_path .
 package require ton 0.1
 
-namespace import ::tcltest::*
+# Tests
+namespace eval ton::test {
 
-proc slurp f {set f [read [set f [open $f]]][close $f]}
+    test pass1_object {A complicated JSON object} -constraints {
+	EmptyObjOrArrBugFixed
+    } -setup {
+	set json [slurp test/pass1.json]
+    } -body {
+	ton::json2ton $json
+    } -result {a [s {JSON Test Pattern pass1}] [o {object with 1 member} [a [s {array with 1 element}]]] [o {}] [a {}] [i -42] [l true] [l false] [l null] [o integer [i 1234567890] real [d -9876.543210] e [d 0.123456789e-12] E [d 1.234567890E+34] {} [d 23456789012E66] zero [i 0] one [i 1] space [s { }] quote [s {\"}] backslash [s {\\}] controls [s {\b\f\n\r\t}] slash [s {/ & \/}] alpha [s abcdefghijklmnopqrstuvwyz] ALPHA [s ABCDEFGHIJKLMNOPQRSTUVWYZ] digit [s 0123456789] 0123456789 [s digit] special [s {`1~!@#$%^&*()_+-={':[,]}|;.</>?}] hex [s {\u0123\u4567\u89AB\uCDEF\uabcd\uef4A}] true [l true] false [l false] null [l null] array [a {}] object [o {}] address [s {50 St. James Street}] url [s http://www.JSON.org/] comment [s {// /* <!-- --}] {# -- --> */} [s { }] { s p a c e d } [a [i 1] [i 2] [i 3] [i 4] [i 5] [i 6] [i 7]] compact [a [i 1] [i 2] [i 3] [i 4] [i 5] [i 6] [i 7]] jsontext [s {{\"object with 1 member\":[\"array with 1 element\"]}}] quotes [s {&#34; \u0022 %22 0x22 034 &#x22;}] {\/\\\"\uCAFE\uBABE\uAB98\uFCDE\ubcda\uef4A\b\f\n\r\t`1~!@#$%^&*()_+-=[]{}|;:',./<>?} [s {A key can be any string}]] [d 0.5] [d 98.6] [d 99.44] [i 1066] [d 1e1] [d 0.1e1] [d 1e-1] [d 1e00] [d 2e+00] [d 2e-00] [s rosebud]}
+
+    test pass2_array {A (not to) deeply nested array} -setup {
+	set json [slurp test/pass2.json]
+    } -body {
+	ton::json2ton $json
+    } -result {a [a [a [a [a [a [a [a [a [a [a [a [a [a [a [a [a [a [a [s {Not too deep}]]]]]]]]]]]]]]]]]]]}
 
 
-test pass1_object {A complicated JSON object} -setup {
-    set json [slurp test/pass1.json]
-} -body {
-    ton::json2ton $json
-} -result {}
-
-test pass2_array {A (not to) deeply nested array} -setup {
-    set json [slurp test/pass2.json]
-} -body {
-    ton::json2ton $json
-} -result {a [a [a [a [a [a [a [a [a [a [a [a [a [a [a [a [a [a [a [s {Not too deep}]]]]]]]]]]]]]]]]]]]}
+    test pass3_object {A simple object} -setup {
+	set json [slurp test/pass3.json]
+    } -body {
+	ton::json2ton $json
+    } -result {o {JSON Test Pattern pass3} [o {The outermost value} [s {must be an object or array.}] {In this test} [s {It is an object.}]]}
 
 
+    test fail1_string {A stray string} -constraints {
+	StrayStringBugFixed
+    } -setup {
+	set json [slurp test/fail1.json]
+    } -body {
+	ton::json2ton $json
+    } -result {s {A JSON payload should be an object or array, not a string.}}
 
-cleanupTests
+
+    test fail2_parser {Unclosed array} -constraints {
+	LeftOverTextBugFixed
+    } -setup {
+	set json [slurp test/fail2.json]
+    } -body {
+	ton::json2ton $json
+    } -returnCodes error -result {json string invalid: left over characters.}
+
+
+    test fail3_key {Unquoted key} -setup {
+	set json [slurp test/fail3.json]
+    } -body {
+	ton::json2ton $json
+    } -returnCodes error -result {json string end invalid:12: ..nquoted_key..}
+
+
+    test fail4_parser {Extra comma} -setup {
+	set json [slurp test/fail4.json]
+    } -body {
+	ton::json2ton $json
+    } -returnCodes error -result {json string end invalid:14: ..tra comma",..}
+    
+
+    #fixup Emacs syntax highligther "
+    test fail5_parser {Double extra comma} -setup {
+	set json [slurp test/fail5.json]
+    } -body {
+	ton::json2ton $json
+    } -returnCodes error -result {json string end invalid:22: ..ra comma",,..}
+    
+
+    #fixup Emacs syntax highligther "	
+    test fail6_array {Missing value} -setup {
+	set json [slurp test/fail6.json]
+    } -body {
+	ton::json2ton $json
+    } -returnCodes error -result {json string end invalid:0: ..[..}
+
+
+
+    test fail7_parser {Comma after close} -setup {
+	set json [slurp test/fail7.json]
+    } -body {
+	ton::json2ton $json
+    } -returnCodes error -result {json string end invalid:25: ..he close"],..}
+
+
+    #fixup Emacs syntax highligther "    
+    test fail8_parser {Extra close} -constraints {
+	ExtraBracketBugFixed
+    } -setup {	
+        set json [slurp test/fail8.json]
+    } -body {
+	ton::json2ton $json
+    } -returnCodes error -result {json string invalid:-1: parsing array.}
+
+    #fixup Emacs syntax highligther  "  
+    test fail9_object {Extra comma} -setup {
+	set json [slurp test/fail9.json]
+    } -body {
+	ton::json2ton $json
+    } -returnCodes error -result {json string end invalid:20: ..mma": true,..}
+
+
+    #fixup Emacs syntax highligther  "
+    test fail10_parser {Misplaced quoted value} -constraints {
+	LeftOverTextBugFixed
+    } -setup {
+	set json [slurp test/fail10.json]
+    } -body {
+	ton::json2ton $json
+    } -returnCodes error -result {json string invalid: left over characters.}
+
+
+    test fail11_number {Illegal expresion} -setup {
+	set json [slurp test/fail11.json]
+    } -body {
+	ton::json2ton $json
+    } -returnCodes error -result {number invalid:22: 1 + 2.}
+
+
+    test fail12_parser {Illegal invocation} -setup {
+	set json [slurp test/fail12.json]
+    } -body {
+	ton::json2ton $json
+    } -returnCodes error -result {json string end invalid:29: ..n": alert()..}
+
+
+    #fixup Emacs syntax highligther  "
+    test fail13_number {Number with leading zero} -constraints {
+	StrictJSON
+    } -setup {
+	set json [slurp test/fail13.json]
+    } -body {
+	ton::json2ton $json
+    } -returnCodes error -result {}
+
+
+    test fail14_number {Hex number} -constraints {
+	StrictJSON
+    } -setup {
+	set json [slurp test/fail14.json]
+    } -body {
+	ton::json2ton $json
+    } -returnCodes error -result {}
+
+
+    test fail15_string {Illegal backslash escape} -constraints {
+	StrictJSON
+    } -setup {
+	set json [slurp test/fail15.json]
+    } -body {
+	ton::json2ton $json
+    } -result {}
+
+
+    test fail16_parser {Illegal literal} -setup {
+	set json [slurp test/fail16.json]
+    } -body {
+	ton::json2ton $json
+    } -returnCodes error -result {json string end invalid:6: ..[\naked..}
+
+
+    test fail17_string {Illegal backslash escape} -constraints {
+	StrictJSON
+    } -setup {
+	set json [slurp test/fail17.json]
+    } -body {
+	ton::json2ton $json
+    } -result {}
+
+
+    test fail18_parser {Deep array} -setup {
+	set json [slurp test/fail18.json]
+    } -body {
+	ton::json2ton $json
+    } -result {a [a [a [a [a [a [a [a [a [a [a [a [a [a [a [a [a [a [a [a [s {Too deep}]]]]]]]]]]]]]]]]]]]]}
+
+
+    test fail19_parser {Missing colon} -setup {
+	set json [slurp test/fail19.json]
+    } -body {
+	ton::json2ton $json
+    } -returnCodes error -result {json string invalid:15: parsing key in object.}
+
+
+    test fail20_parser {Double colon} -setup {
+	set json [slurp test/fail20.json]
+    } -body {
+	ton::json2ton $json
+    } -returnCodes error -result {json string end invalid:15: ..ble colon":..}
+
+
+    #fixup Emacs syntax highligther "	
+    test fail21_parser {Comma instead of colon} -setup {
+	set json [slurp test/fail21.json]
+    } -body {
+	ton::json2ton $json
+    } -returnCodes error -result {json string invalid:25: parsing key in object.}
+
+
+    test fail22_parser {Colon instead of colon} -setup {
+	set json [slurp test/fail22.json]
+    } -body {
+	ton::json2ton $json
+    } -returnCodes error -result {json string invalid:25: parsing array.}
+
+
+    test fail23_parser {Invalid literal} -setup {
+	set json [slurp test/fail23.json]
+    } -body {
+	ton::json2ton $json
+    } -returnCodes error -result {json string end invalid:18: ..lue", truth..}
+
+    #fixup Emacs syntax highligther "	
+    test fail24_parser {Single quote string} -setup {
+	set json [slurp test/fail24.json]
+    } -body {
+	ton::json2ton $json
+    } -returnCodes error -result {json string end invalid:14: ..ngle quote'..}
+
+
+    test fail25_string {Tabs in string} -constraints {
+	StrictJSON
+    } -setup {
+	set json [slurp test/fail25.json]
+    } -body {
+	ton::json2ton $json
+    } -result {}
+
+
+    test fail26_string {Tabs in string} -constraints {
+	StrictJSON
+    } -setup {
+	set json [slurp test/fail26.json]
+    } -body {
+	ton::json2ton $json
+    } -result {}
+
+
+    test fail27_string {Newline  in string} -constraints {
+	StrictJSON
+    } -setup {
+	set json [slurp test/fail27.json]
+    } -body {
+	ton::json2ton $json
+    } -result {}
+
+
+    test fail28_string {Newline  in string} -constraints {
+	StrictJSON
+    } -setup {
+	set json [slurp test/fail28.json]
+    } -body {
+	ton::json2ton $json
+    } -result {}
+
+    test fail29_parser {Invalid double} -setup {
+	set json [slurp test/fail29.json]
+    } -body {
+	ton::json2ton $json
+    } -returnCodes error -result {literal invalid:1: ..[0e.}
+
+
+    test fail30_parser {Invalid double} -setup {
+	set json [slurp test/fail30.json]
+    } -body {
+	ton::json2ton $json
+    } -returnCodes error -result {json string end invalid:3: ..[0e+..}
+
+    #fixup Emacs syntax highligther  "	
+    test fail31_number {Invalid double} -setup {
+	set json [slurp test/fail31.json]
+    } -body {
+	ton::json2ton $json
+    } -returnCodes error -result {json string start invalid:0: exhausted while parsing number.}
+
+
+    test fail32_parser {Comma instead of closing brace} -setup {
+	set json [slurp test/fail32.json]
+    } -body {
+	ton::json2ton $json
+    } -returnCodes error -result {json string end invalid:39: ..ace": true,..}
+
+
+    #fixup Emacs syntax highligther  "
+    test fail33_object {Start bracket mismatch} -setup {
+    	 set json [slurp test/fail33.json]
+    } -body {
+      	 ton::json2ton $json
+    } -returnCodes error -result {json string invalid:0: parsing key in object.}
+
+	
+    cleanupTests
+}
+
+
+namespace delete ::ton::test
+	
 
 # Emacs
 # Local Variables:

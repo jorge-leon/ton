@@ -13,18 +13,25 @@
 namespace eval ton {
     namespace export json2ton
 
-    variable version 0.1
+    variable version 0.2
     
-    proc json2ton json {lindex [jscan $json [string length $json]] 1}
+    proc json2ton json {
+	lassign [jscan $json [string length $json]] i ton
+	if {[trr $json $i]!=-1} {
+	    error "json string invalid: left over characters."
+	}
+	return $ton
+    }
 
 }
 proc ton::trr {s i} {
-    while {[set c [string index $s $i]] eq "\n" ||
-	   [string is space $c]} {incr i -1}
+    while {$i>=0 && ([set c [string index $s $i]] eq "\n" ||
+		 [string is space $c])} {incr i -1}
     return $i
 }
 proc ton::jscan {json i {d :}} {
     set i [trr $json $i]
+    if {$i<0} {return ""}
     switch -glob -- [set c [string index $json $i]] {
 	[0-9.] {num $json $i $c $d}
 	[el] {lit $json [incr i -1]}
@@ -68,14 +75,15 @@ proc ton::str {json i} {
 	set i [string last \" $json $i]
 	if {[string index $json $i-1] ne "\\"} break
     }
-    if {!$i} {
+    if {$i<0} {
 	error "json string start invalid:$i: exhausted while parsing string."
     }
     list [incr i -1] "s [list [string range $json $i+2 $j]]"
 }
 proc ton::arr {json i} {
     set r {}
-    while {$i} {
+    set i [trr $json $i]
+    while {$i>=0 && [string index $json $i] ne "\["} {
 	lassign [jscan $json $i "\[,\[]"] i v
 	lappend r \[$v\]
 	set i [trr $json $i]
@@ -87,10 +95,15 @@ proc ton::arr {json i} {
 	    }
 	}
     }
+    if {$i<0} {
+	error "json string invalid:0: exhausted while parsing array."
+    }
+    return [list [incr i -1] "a {}"]
 }
 proc ton::obj {json i} {
     set r {}
-    while {$i} {
+    set i [trr $json $i]
+    while {$i>=0 && [string index $json $i] ne "\{"} {
 	lassign [jscan $json $i] i v
 	set i [trr $json $i]
 	if {[string index $json $i] eq ":"} {
@@ -102,7 +115,7 @@ proc ton::obj {json i} {
 	} else {
 	    error "json string invalid:$i: parsing key in object."
 	}
-	lappend r \[$v\] $k
+	lappend r \[$v\] [list $k]
 	set i [trr $json $i]
 	switch -exact [string index $json $i] {
 	    , {incr i -1; continue}
@@ -112,6 +125,10 @@ proc ton::obj {json i} {
 	    }
 	}
     }
+    if {$i<0} {
+	error "json string invalid:0: exhausted while parsing object."
+    }
+    return [list [incr i -1] "o {}"]
 }
 namespace eval ton::2list {
     proc atom {type v} {list $type $v}

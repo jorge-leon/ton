@@ -74,21 +74,8 @@ directly in source code into a Tcl script and parses JSON correctly,
 without overstretching correctness.
 
 
-Bugs
-----
-
-The following two valid JSON strings produce an error in
-`ton::json2ton`:
-
-	"k":{}
-	"k":[]
-
-
 Caveats
 -------
-
-`ton::json2ton` will parse the rightmost valid JSON construct in a
-string, and terminate. No check is done for extra characters.
 
 Other then taking care of backslash escaped quotes `\"` on parsing, no
 processing for backslash escapes is done.
@@ -125,8 +112,40 @@ Testing
 -------
 
 json.org offers a small test suite on the page
-http://www.json.org/JSON_checker/
+http://www.json.org/JSON_checker/ which we use to test ton.
+
 
 http://seriot.ch/parsing_json.php goes wild about (non)-compliance and
 missing clarity of specifications. It's test suite is here:
 https://github.com/nst/JSONTestSuite
+
+
+Bugs fixed in Version 0.2
+-------------------------
+
+Thanks to the test suite, we could identify a list of bugs:
+
+
+The following two valid JSON strings produce an error in
+`ton::json2ton`:
+
+	"k":{}
+	"k":[]
+
+The following invalid JSON string (and also any extra `]`) sends *ton*
+into an infinite loop:
+
+	]
+
+A stray string gives an error (the double quote must be the first
+character):
+
+	"x"
+
+An empty JSON string sends *ton* into an infinite loop.
+
+White space in keys result in wrong or invalid TON.
+
+`ton::json2ton` will parse the rightmost valid JSON construct in a
+string, and terminate. No check is done for extra characters.
+
