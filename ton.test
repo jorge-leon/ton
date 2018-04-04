@@ -29,8 +29,7 @@ proc slurp f {set f [read [set f [open $f]]][close $f]}
 # ton setup
 
 lappend auto_path .
-puts "Testing: ton [package require -exact ton 0.2]"
-#puts "Testing: ton [package require ton]"
+puts "Testing: ton [package require ton]"
 
 # Tests
 namespace eval ton::test {

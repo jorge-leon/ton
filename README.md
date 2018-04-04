@@ -88,6 +88,15 @@ avoid arbitrary code execution with malicious crafted JSON or TON
 strings. I believe, that `ton::json2ton` does not generate dangerous
 TON, but this has not been scrutinized.
 
+ToDo
+----
+
+Craft test cases for each error in the code and for corner cases like
+empty arrays.
+
+Review the decoded data with respect to empty arrays and objects and
+guarantee, that JSON -> TON -> JSON is the identity function.
+
 
 References
 ----------
@@ -118,6 +127,17 @@ http://www.json.org/JSON_checker/ which we use to test ton.
 http://seriot.ch/parsing_json.php goes wild about (non)-compliance and
 missing clarity of specifications. It's test suite is here:
 https://github.com/nst/JSONTestSuite
+
+
+Bugs fixed in Version 0.3
+-------------------------
+
+An invalid literal like `[0e]` would not be recognized as such, but
+rather emit a string exhausted error.
+
+Empty objects or arrays must not have an empty list as argument in
+TON, e.g.: `o {}` -> `o`
+
 
 
 Bugs fixed in Version 0.2
