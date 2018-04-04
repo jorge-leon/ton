@@ -98,7 +98,7 @@ proc ton::arr {json i} {
     if {$i<0} {
 	error "json string invalid:0: exhausted while parsing array."
     }
-    return [list [incr i -1] "a {}"]
+    return [list [incr i -1] a]
 }
 proc ton::obj {json i} {
     set r {}
@@ -128,7 +128,7 @@ proc ton::obj {json i} {
     if {$i<0} {
 	error "json string invalid:0: exhausted while parsing object."
     }
-    return [list [incr i -1] "o {}"]
+    return [list [incr i -1] o]
 }
 namespace eval ton::2list {
     proc atom {type v} {list $type $v}
