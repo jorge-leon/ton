@@ -15,24 +15,28 @@ namespace eval ton {
 
     variable version 0.3
     
-    proc json2ton json {
-	set i [trr $json [string length $json]]
-	if {!$i} {return ""}
-	lassign [jscan $json $i] i ton
-	if {[set i [trr $json $i]]} {
-	    error "json string invalid:[incr i -1]: left over characters."
-	}
-	return $ton
-    }
 }
+proc ton::json2ton json {
+    # Parse JSON string json
+    #
+    # return: TON
     
+    set i [trr $json [string length $json]]
+    if {!$i} {return ""}
+    lassign [jscan $json $i] i ton
+    if {[set i [trr $json $i]]} {
+	error "json string invalid:[incr i -1]: left over characters."
+    }
+    return $ton
+}
 proc ton::trr {s i} {
-    # Trim whitespace right on the first i characters of s.
-    # Return number of remaining characters in s
+    # Trim righthand whitespace on the first i characters of s.
+    # return: number of remaining characters in s
     
-    while {$i && ([set c [string index $s $i-1]] eq "\n" ||
-		  [string is space $c])} {incr i -1}
-    return $i
+    while {[set j $i] &&
+	   ([string is space [set c [string index $s [incr i -1]]]]
+	    || $c eq "\n")} {}
+    return $j
 }
 proc ton::jscan {json i {d :}} {
     # Scan JSON in first i characters of string json.
@@ -59,14 +63,6 @@ proc ton::jscan {json i {d :}} {
     } else {
 	error "json string end invalid:$i: ..[string range $json $i-10 $i].."
     }
-    # switch -glob -- [set c [string index $json $i]] {
-    # 	[0-9.] {num $json $i $c $d}
-    # 	[el] {lit $json $i}
-    # 	\" {str $json [incr i -1]}
-    # 	\] {arr $json $i}
-    # 	\} {obj $json $i}
-    # 	default {error "json string end invalid:$i: ..[string range $json $i-10 $i].."}
-    # }
 }
 proc ton::num {json i c d} {
     # Parse number from position i in string json to the left.
@@ -91,13 +87,11 @@ proc ton::num {json i c d} {
 	error "number invalid:$i: $num."
     }
 }
-
 proc ton::lit {json i} {
     # Parse literal from position i in string json to the left
     # return list:
     # - remaining string length
     # - TON of literal
-
 
     if {[set c [string index $json $i-1]] eq "u"} {
 	list [incr i -3] "l true"
@@ -106,18 +100,9 @@ proc ton::lit {json i} {
     } elseif {$c eq "l"} {
 	list [incr i -3] "l null"
     } else {
+	set e [string range $json $i-3 $i]
 	error "literal invalid:[incr i -1]: ..$e."
     }
-
-    # switch -exact -- [set c [string index $json $i-1]] {
-    # 	l {return [list [incr i -3] "l null"]}
-    # 	u {return [list [incr i -3] "l true"]}
-    # 	s {return [list [incr i -4] "l false"]}
-    # 	default {
-    # 	    set e [string range $json $i-5 $i]
-    # 	    error "literal invalid:[incr i -1]: ..$e."
-    # 	}
-    #}
 }
 proc ton::str {json i} {
     # Parse string from position i in string json to the left
@@ -158,17 +143,6 @@ proc ton::arr {json i} {
 	    continue
 	} elseif {$c eq "\["} break
 	error "json string invalid:$i: parsing array."
-	
-	# switch -exact [string index $json $i] {
-	#     \[ break
-	#     , {
-	# 	set i [trr $json $i]
-	# 	continue
-	#     }
-	#     default {
-	# 	error "json string invalid:$i: parsing array."
-	#     }
-	}
     }
     lappend r a
     return [list $i [join [lreverse $r]]]
@@ -180,9 +154,9 @@ proc ton::obj {json i} {
     # - TON of object
 
     set i [trr $json $i]
-    # if {!$i} {
-    # 	error "json string invalid:0: exhausted while parsing object."
-    # }
+    if {!$i} {
+    	error "json string invalid:0: exhausted while parsing object."
+    }
     if {[string index $json $i-1] eq "\{"} {
 	return [list [incr i -1] o]
     }
@@ -207,23 +181,12 @@ proc ton::obj {json i} {
 	    set i [trr $json $i]
 	    continue
 	} elseif {$c eq "\{"} break
-	error "json string invalid:$i: parsing object."
-	
-	# switch -exact [string index $json $i] {
-	#     \{ break
-	#     , {
-	# 	set i [trr $json $i]
-	# 	continue
-	#     }
-	#     default {
-	# 	error "json string invalid:$i: parsing object."
-	#     }
-	#}
+	error "json string invalid:$i: parsing object."	
     }
     lappend r o
     return [list $i [join [lreverse $r]]]
 }
-
+# TON decoders
 namespace eval ton::2list {
     proc atom {type v} {list $type $v}
     foreach type {i d s l} {

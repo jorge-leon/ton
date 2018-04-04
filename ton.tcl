@@ -17,8 +17,8 @@ namespace eval ton {
     
     proc json2ton json {
 	lassign [jscan $json [string length $json]] i ton
-	if {[trr $json $i]!=-1} {
-	    error "json string invalid: left over characters."
+	if {[set i [trr $json $i]]!=-1} {
+	    error "json string invalid:$i: left over characters."
 	}
 	return $ton
     }
