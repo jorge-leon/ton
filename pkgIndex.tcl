@@ -1,1 +1,1 @@
-package ifneeded ton 0.3 [list source [file join $dir ton.tcl]]
+package ifneeded ton 0.4 [list source [file join $dir ton.tcl]]
